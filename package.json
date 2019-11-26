@@ -1,0 +1,10 @@
+{
+  "name": "ethereum-todo-list-app",
+  "version": "1.0.0",
+  "main": "truffle-config.js",
+  "license": "MIT",
+  "devDependencies": {
+    "truffle": "5.0.2",
+    "truffle-contract": "3.0.6"
+  }
+}
