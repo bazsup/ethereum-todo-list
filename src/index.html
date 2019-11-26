@@ -1,14 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <title>Document</title>
+  <style>
+    .completed span {
+      text-decoration: line-through;
+    }
+  </style>
 </head>
 <body>
-    <div id="app">Hello</div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.10/vue.min.js"></script>
-    
+  <div id="app">
+  
+    <!-- As a heading -->
+    <nav class="navbar navbar-dark bg-dark">
+      <span class="navbar-brand mb-0 h1">Navbar</span>
+      <div class="d-inline-block text-white">Account: {{ account }}</div>
+    </nav>
+    <div style="margin: auto; width: 350px;" class="mt-2">
+      <template v-if="loading">
+        <div class="text-center">Loading..</div>
+      </template>
+      <template v-else>
+        <form @submit.prevent="createTask">
+          <input id="newTask" type="text" class="form-control" placeholder="Add task..." required v-model="content">
+          <input type="submit" hidden="">
+        </form>
+        <ul class="list-unstyled mt-2">
+          <li v-for="task in tasks" :class="{ completed: task.completed }">
+            <label>
+              <input type="checkbox" :checked="task.completed" @click="toggleCompleted" :name="task.id" />
+              <span>{{ task.content }}</span>
+            </label>
+          </li>
+        </ul>
+      </template>
+    </div>
+      <!-- Hello, {{ name }}   -->
+  </div>
+  <script src="vendor/truffle-contract/dist/truffle-contract.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.6.10/vue.min.js"></script>
+  <script>
+    const app = new Vue({
+      el: '#app',
+      data () {
+        return {
+          name: 'Bas',
+          webProvider: null,
+          account: '',
+          todoList: null,
+          tasks: [],
+          loading: false,
+          content: ""
+        }
+      },
+      async mounted () {
+        await this.loadWeb3()
+        await this.loadAccount()
+        await this.loadContract()
+      },
+      methods: {
+        async loadWeb3 () {
+          if (typeof web3 !== 'undefined') {
+            this.web3Provider = web3.currentProvider
+            web3 = new Web3(web3.currentProvider)
+          } else {
+            window.alert("Please connect to Metamask.")
+          }
+          // Modern dapp browsers...
+          if (window.ethereum) {
+            window.web3 = new Web3(ethereum)
+            try {
+              // Request account access if needed
+              await ethereum.enable()
+              // Acccounts now exposed
+              web3.eth.sendTransaction({/* ... */})
+            } catch (error) {
+              // User denied account access...
+            }
+          }
+        },
+        loadAccount () {
+          this.account = window.web3.eth.accounts[0]
+        },
+        async loadContract () {
+          const response = await fetch('/TodoList.json')
+          const todoListContracts = await response.json()
+          const contracts_todoList = TruffleContract(todoListContracts)
+          contracts_todoList.setProvider(this.web3Provider)
+
+          // // Hydrate the smart contract with values from the blockchain
+          this.todoList = await contracts_todoList.deployed()
+
+          await this.renderTasks()
+        },
+        async renderTasks () {
+          const tasks = []
+          const taskCount = await this.todoList.taskCount()
+          for (let i = 1; i <= taskCount; i++) {
+            const task = await this.todoList.tasks(i)
+
+            const id = task[0].toNumber()
+            const content = task[1]
+            const completed = task[2]
+            tasks.push({
+              id,
+              content,
+              completed
+            })
+          }
+          this.tasks = tasks
+        },
+        async createTask (e) {
+          e.preventDefault()
+          this.loading = true
+          await this.todoList.createTask(this.content)
+          window.location.reload()
+        },
+        async toggleCompleted (e) {
+          this.loading = true
+          const taskId = e.target.name
+          await this.todoList.toggleCompleted(taskId)
+          window.location.reload()
+        },
+      }
+    })
+  </script>
 </body>
 </html>
